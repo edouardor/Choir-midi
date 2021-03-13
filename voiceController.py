@@ -12,7 +12,7 @@ import music21 # yes!
 parser = argparse.ArgumentParser()
 parser.add_argument("-input", required=False, type=int, help="Audio Input Device")
 args = parser.parse_args()
-
+args.input = 3 #esto lo he puesto yo
 if not args.input:
     print("No input device specified. Printing list of input devices now: ")
     p = pyaudio.PyAudio()
