@@ -1,16 +1,24 @@
 from threading import Thread
 import pygame
-#from pygame.locals import *
 import math
 
 from shortvoiceController import q, get_current_note
-from music21 import *  #or import music21?
-import time
-import datetime
+from music21 import *
+#import time
+#import datetime
 
-import copy
-from tk_1 import filename
+#import copy
+from tk_2 import App
 
+my_app = App()
+filename = my_app.filename
+score = my_app.score
+score_with_measures = my_app.score_with_measures
+key = my_app.key
+part = my_app.selected_part.get()
+Repeat = my_app.repeat.get()
+start = my_app.first_measure.get()
+end = my_app.last_measure.get()
 pygame.font.init()
 
 #TODO: add code to ask which midi file
@@ -21,28 +29,28 @@ short_name_file = my_midi_file[my_midi_file.rfind('/')+1:]
 #measuredStream = my_midi_file.makeNotation()
 
 ###MUSIC 21 code
-score = converter.parse(my_midi_file)
-key = score.analyze('key')
-print(key.tonic.name, key.mode)
+#score = converter.parse(my_midi_file)
+#key = score.analyze('key')
+#print(key.tonic.name, key.mode)
 
 
 #TODO: ask for which part will be used - and after, code to ear (or mute) the different parts
 
 
 #as an example:
-start = 4
+'''start = 4
 start = max(1,start) #to avoid beginning by 0 or negativve number
 end = 18
 part = 3
 
-Repeat = True
+Repeat = True'''
 
-def shorten(score, part, start, end):
+def shorten(score, score_with_measures, part, start, end):
     score_part = score.parts[part]
     score_part = score_part.makeMeasures()
     short_score_part = score_part.measures(start,end)  
     #insert first metronome mark:
-    score_with_measures = score.makeMeasures()
+    #score_with_measures = score.makeMeasures()
     start_measure = score_with_measures.getElementsByClass('Measure')[start -1] #first measure has an 0 index
     mm_start = [mm for mm in score_with_measures.flat.getElementsByClass('MetronomeMark') if mm.offset <= start_measure.offset][-1]
 
@@ -112,7 +120,7 @@ def fmtomidi(fm):
     return 12*math.log2(fm/440) + 69
          
 
-short_score_part, mm_start = shorten(score, part, start, end)
+short_score_part, mm_start = shorten(score, score_with_measures,part, start, end)
 sM = short_score_part.secondsMap  #for drawing Measures
 sflatM = short_score_part.flat.secondsMap #for drawing Notes
 #score = score.makeMeasures()
