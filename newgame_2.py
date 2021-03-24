@@ -1,13 +1,8 @@
 from threading import Thread
 import pygame
 import math
-
 from shortvoiceController import q, get_current_note
 from music21 import *
-#import time
-#import datetime
-
-#import copy
 from tk_2 import App
 
 my_app = App()
@@ -20,37 +15,15 @@ Repeat = my_app.repeat.get()
 start = my_app.first_measure.get()
 end = my_app.last_measure.get()
 pygame.font.init()
-
-#TODO: add code to ask which midi file
-#my_midi_file = 'Tourdion.mid'
-#my_midi_file = '/Users/eduardoratier/Downloads/CAT00507 BAJO.mid' #CAT00058 CAT00514 CAT00507 
+ 
 my_midi_file = filename
 short_name_file = my_midi_file[my_midi_file.rfind('/')+1:]
-#measuredStream = my_midi_file.makeNotation()
-
-###MUSIC 21 code
-#score = converter.parse(my_midi_file)
-#key = score.analyze('key')
-#print(key.tonic.name, key.mode)
-
-
-#TODO: ask for which part will be used - and after, code to ear (or mute) the different parts
-
-
-#as an example:
-'''start = 4
-start = max(1,start) #to avoid beginning by 0 or negativve number
-end = 18
-part = 3
-
-Repeat = True'''
 
 def shorten(score, score_with_measures, part, start, end):
     score_part = score.parts[part]
     score_part = score_part.makeMeasures()
     short_score_part = score_part.measures(start,end)  
     #insert first metronome mark:
-    #score_with_measures = score.makeMeasures()
     start_measure = score_with_measures.getElementsByClass('Measure')[start -1] #first measure has an 0 index
     mm_start = [mm for mm in score_with_measures.flat.getElementsByClass('MetronomeMark') if mm.offset <= start_measure.offset][-1]
 
@@ -65,25 +38,36 @@ def shorten(score, score_with_measures, part, start, end):
 
     return short_score_part, mm_start
 
+def draw_note(n,elapsed_time, duration):
+     
+    font = pygame.font.SysFont('Comic Sans MS', 10)
+    x = elapsed_time * PXS #pixel_per_second
+    y = place_note(n.pitch.midi) - altura_notas / 2
+    longitud = duration * PXS #pixel_per_second
+    note_rect = Colored_rect(x ,y, longitud, altura_notas,color_default)           
+    pygame.draw.rect(stage, color_default, note_rect, 2,4)
+    text = font.render(n.pitch.spanish, 1, (9, 180, 237))
+    textpos = (x+5, y)
+    stage.blit(text, textpos)
+    
+    return note_rect           
+
 def draw_notes():
     all_displaid_notes_list = []
     for element in sflatM:
+        elapsed_time = element['offsetSeconds']
+        duration = element['durationSeconds']
+
         if isinstance(element['element'], note.Note):
-            #print(element['element'], element['offsetSeconds'],element['durationSeconds'])
-            n = element['element']  #n is a note
-            elapsed_time = element['offsetSeconds']     
-            font = pygame.font.SysFont('Comic Sans MS', 10)
-            x = elapsed_time * PXS #pixel_per_second
-            #y = screenHeight - int(n.pitch.midi)*ZOOM - altura_notas / 2
-            y = place_note(n.pitch.midi) - altura_notas / 2
-            longitud = n.seconds * PXS #pixel_per_second
-            note_rect = Colored_rect(x ,y, longitud, altura_notas,color_default)           
-            pygame.draw.rect(stage, color_default, note_rect, 2,4)
-            text = font.render(n.pitch.spanish, 1, (9, 180, 237))
-            textpos = (x+5, y)
-            stage.blit(text, textpos)
+            n = element['element']
+            note_rect = draw_note(n, elapsed_time, duration)
             all_displaid_notes_list.append(note_rect)
-        
+
+        elif isinstance(element['element'], chord.Chord):
+            for n in element['element']:
+                note_rect = draw_note(n, elapsed_time, duration)
+                all_displaid_notes_list.append(note_rect)   
+     
     return all_displaid_notes_list
 
 def draw_measures():
@@ -104,34 +88,25 @@ def draw_scale():
     else:
         sc = scale.MinorScale(pitch.Pitch(key.tonic.name))
     for p in sc.getPitches(minNote.nameWithOctave, maxNote.nameWithOctave):
-        y = place_note(p.midi)
-        #y = screenHeight - int(sc.pitchFromDegree(i).frequency)/4 + altura_notas/2#el 2 es a lo bruto 
-        pygame.draw.line(stage, (0,0,100, 10), (0,y), (stageWidth, y), 1)
-        #y = screenHeight - int(sc.pitchFromDegree(i).frequency)/2 + altura_notas/2#el 2 es a lo bruto 
-        #pygame.draw.line(stage, (0,0,255, 10), (0,y), (screenWidth, y), 1)    
+        y = place_note(p.midi) 
+        pygame.draw.line(stage, (0,0,100, 10), (0,y), (stageWidth, y), 1)    
 
 def place_note(pitch_midi):
     a = -(stageHeight*.60)/(max_midi_note - min_midi_note)
     b = (stageHeight*.40) / 2 - a * max_midi_note
-    
     return a * pitch_midi + b
 
 def fmtomidi(fm):
     return 12*math.log2(fm/440) + 69
          
-
 short_score_part, mm_start = shorten(score, score_with_measures,part, start, end)
 sM = short_score_part.secondsMap  #for drawing Measures
 sflatM = short_score_part.flat.secondsMap #for drawing Notes
-#score = score.makeMeasures()
-#short_score = score.flat.measures(start,end)
 short_score = score.measures(start,end)
  #tarda mucho
 short_score.insertAndShift(0,mm_start) 
 short_score_midi = short_score.write('midi')
 my_midi_file = short_score_midi
-
-
 
 #to find where the notes should be placed on the screen:
 list_midi_notes = [note.pitch.midi for note in short_score_part.flat.getElementsByClass('Note')]
@@ -140,23 +115,16 @@ max_midi_note = max(list_midi_notes)
 minNote = note.Note(min_midi_note)
 maxNote = note.Note(max_midi_note)
 
-#short_score_part.show('text')
-#print(short_score_part.flat.seconds)
-
-
-
 pygame.init()
 screenWidth, screenHeight = 1000, 512 #try with different set-ups
 screen = pygame.display.set_mode((screenWidth, screenHeight))
-
-#screen.set_alpha(0) 
+ 
 clock = pygame.time.Clock()
 
 pixel_per_second = screenWidth / short_score_part.flat.seconds
-#pixel_event = screenWidth / score.quarterLength
 color_default = (9,180,237)
 altura_notas = 16
-PXS = max(20,pixel_per_second)
+PXS = max(40,pixel_per_second)
 stageHeight = screenHeight 
 stageWidth = int(PXS * short_score_part.flat.seconds) 
 running = True
@@ -168,10 +136,6 @@ buffer = 1024    # number of samples
 pygame.mixer.init(freq, bitsize, channels, buffer)
 # optional volume 0 to 1.0
 pygame.mixer.music.set_volume(0.8)
-
-
-     
-
 
 class Colored_rect(pygame.Rect):
    
@@ -213,10 +177,6 @@ pygame.mixer.music.load(my_midi_file)
 pygame.event.wait()
 pygame.mixer.music.play()
 
-#sp = midi.realtime.StreamPlayer(short_score)
-#sp.play()
-#t0 = datetime.datetime.now()
-
 ###Now the game starts:
 while running:
     
@@ -236,13 +196,7 @@ while running:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     #pygame.mixer.music.unpause()
                     break #Exit infinite loop        
-    #t1 = datetime.datetime.now()
-    #real_elapsed_time = t1 - t0
-    #alt_music_position = real_elapsed_time.seconds + real_elapsed_time.microseconds / 1000000
     music_position = pygame.mixer.music.get_pos() / 1000  # in seconds
-    #print(alt_music_position,music_position)
-    #dt = music_position *screenWidth /(score.seconds * 1000) 
-    #x = music_position * PXS * 120 / correction_mm
     x = music_position * PXS
     stage_page = int(x // screenWidth)  
     pygame.display.set_caption(short_name_file + " page: " + str(stage_page + 1))
@@ -262,9 +216,7 @@ while running:
 
     # our user should be singing if there's a note on the queue
     if not q.empty():
-        b = q.get()
-         
-        #y = screenHeight - int(b['NoteMidi']*ZOOM) 
+        b = q.get() 
         y = place_note(fmtomidi(b['NotePitch']))
         sing_sprite = sing_display(x,y,4)
     else:
@@ -278,7 +230,6 @@ while running:
             if green <0: green = 0
             color = (0,green,255)
             note_rect.color = color
-            #print(green)
             pygame.draw.rect(stage, color, note_rect, 0,4)
         else:
             pygame.draw.rect(stage, color_default, note_rect, 2,4)     
@@ -294,9 +245,6 @@ while running:
             draw_measures()
             draw_scale()
             pygame.mixer.music.play()
-
-
-            #screen.fill((255,255,255))
         else:
             running = False    
 
