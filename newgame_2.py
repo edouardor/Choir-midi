@@ -56,6 +56,7 @@ def draw_notes():
     all_displaid_notes_list = []
     for element in sflatM:
         elapsed_time = element['offsetSeconds']
+        x = elapsed_time * PXS
         duration = element['durationSeconds']
 
         if isinstance(element['element'], note.Note):
@@ -66,21 +67,26 @@ def draw_notes():
         elif isinstance(element['element'], chord.Chord):
             for n in element['element']:
                 note_rect = draw_note(n, elapsed_time, duration)
-                all_displaid_notes_list.append(note_rect)   
+                all_displaid_notes_list.append(note_rect)
+
+        elif isinstance(element['element'],meter.TimeSignature):
+            sign = element['element']
+            draw_text(str(sign.numerator) + '/' + str(sign.denominator),(x+5,20))           
      
     return all_displaid_notes_list
 
 def draw_measures():
     for element in sM:
+        elapsed_time = element['offsetSeconds']
+        x = elapsed_time * PXS
         if isinstance(element['element'], stream.Measure):
-            me = element['element'] #m is a measure
-            elapsed_time = element['offsetSeconds']
-            x = elapsed_time * PXS
+            me = element['element'] #me is a measure
             pygame.draw.line(stage, (0,0,100,10), (x, 0), (x, screenHeight), 1)     
-            font = pygame.font.SysFont('Comic Sans MS', 10)
-            text = font.render(str(me.number), 1, (9, 180, 237))
-            textpos = (x+5, stageHeight-20)
-            stage.blit(text,(textpos))             
+            draw_text(str(me.number),(x+5, stageHeight-20))
+        elif isinstance(element['element'], tempo.MetronomeMark):
+            tmpo = element['element']
+            draw_text(str(int(tmpo.number)),(x+5, 10))
+   
      
 def draw_scale():
     if key.mode == 'major':
@@ -98,7 +104,24 @@ def place_note(pitch_midi):
 
 def fmtomidi(fm):
     return 12*math.log2(fm/440) + 69
-         
+
+def mov_avg(numbers_list, window_size): #trailing moving averages to smooth input pitch
+    moving_averages =[]
+    for j in range(1,len(numbers_list)+1):
+        if j < window_size:
+            this_window = numbers_list[0:j]
+        else:
+            this_window = numbers_list[j-window_size  : j]
+        window_average = sum(this_window) / len(this_window)
+        moving_averages.append(window_average)      
+    return moving_averages
+
+def draw_text(my_text, text_pos):
+    font = pygame.font.SysFont('Comic Sans MS', 10)
+    text = font.render(my_text, 1, (9, 180, 237))
+    stage.blit(text, text_pos) 
+
+
 short_score_part, mm_start = shorten(score, score_with_measures,part, start, end)
 sM = short_score_part.secondsMap  #for drawing Measures
 sflatM = short_score_part.flat.secondsMap #for drawing Notes
@@ -154,7 +177,7 @@ class sing_display(pygame.sprite.Sprite):
         self.radio = radio
         pygame.draw.circle(screen, (0, 128, 255),(x % screenWidth, y), radio,5)  
 
-        pygame.draw.circle(stage, (190, 220, 250),(x, y), 3,3)
+        pygame.draw.circle(stage, (190, 220, 250),(x, y), 2,2)
 
     @property
     def rect(self):  
@@ -165,6 +188,10 @@ t = Thread(target=get_current_note)
 t.daemon = True
 t.start()
 dt = 0.0
+old_avg = 0
+x = 0
+n = 0
+list_sung_notes = []
 
 stage = pygame.Surface((stageWidth, stageHeight)) 
 stage.fill((0,0,0))
@@ -180,7 +207,7 @@ pygame.mixer.music.play()
 ###Now the game starts:
 while running:
     
-    clock.tick(100) 
+    #clock.tick(100) 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -197,7 +224,9 @@ while running:
                     #pygame.mixer.music.unpause()
                     break #Exit infinite loop        
     music_position = pygame.mixer.music.get_pos() / 1000  # in seconds
+    
     x = music_position * PXS
+    y = 0
     stage_page = int(x // screenWidth)  
     pygame.display.set_caption(short_name_file + " page: " + str(stage_page + 1))
     screen.blit(stage,(-stage_page * screenWidth,0))
@@ -218,9 +247,18 @@ while running:
     if not q.empty():
         b = q.get() 
         y = place_note(fmtomidi(b['NotePitch']))
-        sing_sprite = sing_display(x,y,4)
+        list_sung_notes.append(y)
+        window_size = 20
+        last = mov_avg(list_sung_notes, window_size)[-1]
+         #moving average to smooth intro
+        #pygame.draw.line(stage, (190, 220, 250),(x_ant, old_avg),(x, new_avg), 1)
+        
+        sing_sprite = sing_display(x,last,4)
     else:
-        y = 0    
+        list_sung_notes = []
+        
+      
+          
 
     for note_rect in all_displaid_notes_list:
         color = note_rect.color
