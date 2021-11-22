@@ -189,7 +189,7 @@ def check_note():
             if note_rect.collidepoint((event.pos[0] + stage_page * screenWidth),event.pos[1]):
                 #midi_note_number = midi_note(note_rect.y)
                 fs.noteon(0,midi_note(note_rect.y), 127)
-                time.sleep(note_rect.w / PXS)
+                time.sleep(min(1,note_rect.w / PXS))
                 fs.noteoff(0,midi_note(note_rect.y))
         pygame.event.clear()
     return
@@ -326,6 +326,7 @@ is_paused = False
 delta = 0
 elapsed = 0
 pygame.event.clear()
+rewind = False
 
 ###Now the game starts:
 while running:
@@ -368,10 +369,8 @@ while running:
             redraw(best_score)
             score = 0
             pygame.mixer.music.play(-1,music_start_time+elapsed-delta)
-            '''stime = time.time()
-            is_paused = False
-            delta = 0
-            elapsed = 0'''
+            rewind = True
+            
         if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE and sound_file:
             #pygame.mixer.music.rewind()
                 elapsed = time.time() - stime
@@ -397,6 +396,11 @@ while running:
     pygame.display.set_caption(short_name_file + " page: " + str(stage_page + 1))
     screen.blit(stage,(-stage_page * screenWidth,0))
     rel_x = x % screenWidth
+    if rewind:
+        rewind_x = rel_x
+        pygame.draw.line(stage, (9,180,237, 100), (rewind_x, 0), (rewind_x, stageHeight), 1)                      
+        rewind = False
+
     pygame.draw.line(screen, (9,180,237, 10), (rel_x, 0), (rel_x, stageHeight), 1)                      
 
     #wait for any key to be stroked before beginning
