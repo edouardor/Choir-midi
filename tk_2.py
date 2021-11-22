@@ -21,6 +21,7 @@ class App():
         self.last_measure = tk.IntVar(value = 10)
         self.text_file = tk.StringVar()
         self.info_key = tk.StringVar()
+        self.silence = tk.BooleanVar()
         
         #declare window widgets
 
@@ -32,6 +33,7 @@ class App():
         self.lbl4 = tk.Label(self.root,text='Select the part you want to sing: ' )
         self.combo = ttk.Combobox(self.root, values = self.part_list, state="readonly", textvariable = self.selected_part)
         self.chkbtt = tk.Checkbutton(self.root, text = 'Repeat', width = 15, variable = self.repeat)
+        self.chkbtt2 = tk.Checkbutton(self.root, text = 'No Sound', width = 15, variable = self.silence)
         self.lbl5 = tk.Label(self.root, text='Select the measures you want to sing: ')
         self.lbl6 = tk.Label(self.root, text= 'First measure')
         self.lbl7 = tk.Label(self.root, text= 'Last measure')
@@ -50,6 +52,7 @@ class App():
         self.lbl4.pack()
         self.combo.pack()
         self.chkbtt.pack(padx = 5, pady = 5)
+        self.chkbtt2.pack(padx = 5, pady = 5)
         self.lbl5.pack()
         self.lbl6.pack(side = tk.LEFT, padx = 20, expand = True)
         self.entry1.pack(side = tk.LEFT, padx = 20, expand = True)
@@ -86,13 +89,14 @@ class App():
         print(f'filename: {self.filename}')
         print(f'selected part: {self.selected_part.get()}')
         print(f'repeat: {self.repeat.get()}')
+        print(f'no sound: {self.silence.get()}')
         print(f'first measure: {self.first_measure.get()}')
         print(f'last measure: {self.last_measure.get()}')
         self.root.destroy()    
                  
 def main():
     my_app = App()
-    return 0
+    return #0
 
 if __name__ == '__main__':
     main()

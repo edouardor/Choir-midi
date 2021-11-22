@@ -81,8 +81,8 @@ def draw_measures():
         x = elapsed_time * PXS
         if isinstance(element['element'], stream.Measure):
             me = element['element'] #me is a measure
-            pygame.draw.line(stage, (0,0,100,10), (x, 0), (x, screenHeight), 1)     
-            draw_text(str(me.number),(x+5, stageHeight-20))
+            pygame.draw.line(stage, (0,0,100,10), (x, 0), (x, screenHeight-20), 1)     
+            draw_text(str(me.number),(x, stageHeight-20))
         elif isinstance(element['element'], tempo.MetronomeMark):
             tmpo = element['element']
             draw_text(str(int(tmpo.number)),(x+5, 10))
@@ -193,6 +193,7 @@ t.start()
 x = 0
 #n = 0
 score = 0
+best_score = 0
 list_sung_notes = []
 
 stage = pygame.Surface((stageWidth, stageHeight)) 
@@ -260,7 +261,9 @@ while running:
         list_sung_notes = []
         
       
-    draw_text(str(score),(screenWidth / 2, screenHeight - 50), 30, False)      
+    draw_text(str(score),(screenWidth / 2, 0), 30, False)
+    if Repeat:
+        draw_text('best score: '+str(best_score),(screenWidth / 2-25, 45), 15, False)      
 
     for note_rect in all_displaid_notes_list:
         color = note_rect.color
@@ -290,6 +293,9 @@ while running:
             all_displaid_notes_list = draw_notes()
             draw_measures()
             draw_scale()
+            best_score = max(score, best_score) 
+            draw_text('best score: '+str(best_score),(screenWidth / 2-25, 45), 15, False)
+            score = 0
             pygame.mixer.music.play()
         else:
             running = False    

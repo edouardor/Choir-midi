@@ -2,9 +2,11 @@ from threading import Thread
 import pygame
 import math
 import time
-from shortvoiceController import q, get_current_note
+from voice_input import q, get_current_note
 from music21 import *
 from tk_2 import App
+import pygame.midi #to be able to play notes when game is paused
+import fluidsynth
 
 my_app = App()
 filename = my_app.filename
@@ -54,11 +56,11 @@ def shorten(score, score_with_measures, part, start, end):
 
 def draw_note(n,elapsed_time, duration):
      
-    font = pygame.font.SysFont('Comic Sans MS', 10)
+    font = pygame.font.SysFont('Arial', 10)
     x = elapsed_time * PXS #pixel_per_second
     y = place_note(n.pitch.midi) - altura_notas / 2
     longitud = duration * PXS #pixel_per_second
-    note_rect = Colored_rect(x ,y, longitud, altura_notas,color_default)           
+    note_rect = Colored_rect(x ,y, longitud, altura_notas,color_default)          
     pygame.draw.rect(stage, color_default, note_rect, 2,4)
     text = font.render(n.pitch.spanish, 1, (9, 180, 237))
     textpos = (x+5, y)
@@ -109,18 +111,26 @@ def draw_measures():
    
      
 def draw_scale():
+    line_color = 0
     if key.mode == 'major':
         sc = scale.MajorScale(pitch.Pitch(key.tonic.name))
     else:
         sc = scale.MinorScale(pitch.Pitch(key.tonic.name))
     for p in sc.getPitches(minNote.nameWithOctave, maxNote.nameWithOctave):
         y = place_note(p.midi) 
-        pygame.draw.line(stage, (0,0,100, 10), (0,y), (stageWidth, y), 1)    
-
+        pygame.draw.line(stage, (0,min(line_color,255),140, 10), (0,y), (stageWidth, y), 2)    
+        draw_text(p.spanish,(5,y - altura_notas / 2))
+        line_color += 20
 def place_note(pitch_midi):
     a = -(stageHeight*.60)/(max_midi_note - min_midi_note)
     b = (stageHeight*.40) / 2 - a * max_midi_note
     return a * pitch_midi + b
+
+def midi_note(y):
+    a = -(stageHeight*.60)/(max_midi_note - min_midi_note)
+    b = (stageHeight*.40) / 2 - a * max_midi_note
+    return (y-b)/a
+
 
 def fmtomidi(fm):
     return 12*math.log2(fm/440) + 69
@@ -137,7 +147,7 @@ def mov_avg(numbers_list, window_size): #trailing moving averages to smooth inpu
     return moving_averages
 
 def draw_text(my_text, text_pos, font_size = 10, on_stage = True):
-    font = pygame.font.SysFont('Comic Sans MS', font_size)
+    font = pygame.font.SysFont('Arial', font_size)
     text = font.render(my_text, 1, (9, 180, 237))
     if on_stage:
         stage.blit(text, text_pos)
@@ -170,6 +180,18 @@ def insert_lyrics(words):
                     n.addLyric('-')
 
             count+=1
+
+# when paused, allow the user to press a rectangle to hear the note
+def check_note():
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        for note_rect in all_displaid_notes_list:
+            
+            if note_rect.collidepoint(event.pos):
+                fs.noteon(0,note_rect.y, 80)
+                fs.noteoff(0,note_rect.y, 80)
+
+    return
+
                 
 
 
@@ -242,7 +264,8 @@ class Colored_rect(pygame.Rect):
     def __init__(self,x,y,w,h,color,collided=0): 
         super().__init__(x,y,w,h)
         self.color = color
-        self.collided = collided                         
+        self.collided = collided
+        self.y = y                        
 
 class sing_display(pygame.sprite.Sprite):
 
@@ -284,13 +307,16 @@ if sound_file:
 else:    
     pygame.mixer.music.load(my_midi_file)
 
-'''while True:
-    #redraw(0)
-    draw_text('Press any key to begin',(screenWidth / 2-15, 65), 15,False)
-    screen.blit(stage,(0,0)) 
-    event = pygame.event.wait()
-    if event.type == pygame.KEYDOWN:
-        break'''
+#to be changed if program is shared with other people
+#should ask if there is a sound file sf2 somewhere
+pygame.midi.init()
+
+fs = fluidsynth.Synth()
+fs.start(driver = 'coreaudio')  # use DirectSound driver
+
+sfid = fs.sfload(r'/Users/eduardoratier/ImportedSoundFonts/GeneralUser.sf2')  # replace path as needed
+fs.program_select(0, sfid, 0, 0) #program_select(track, soundfontid, banknum, presetnum)
+
 pygame.mixer.music.play(-1,music_start_time) 
 #beginning_time = time.time()
 stime = time.time()
@@ -316,6 +342,7 @@ while running:
             while True: #Infinite loop that will be broken when the user press the space bar again
                 if sound_file:
                     pygame.mixer.music.pause()
+                    check_note()
                 else:    
                     pygame.mixer.music.stop()
                 #sp.stop()
@@ -336,7 +363,11 @@ while running:
             best_score = max(score, best_score)
             redraw(best_score)
             score = 0
-            pygame.mixer.music.play(-1,music_start_time)
+            pygame.mixer.music.play(-1,music_start_time+elapsed-delta)
+            '''stime = time.time()
+            is_paused = False
+            delta = 0
+            elapsed = 0'''
         if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE and sound_file:
             #pygame.mixer.music.rewind()
                 elapsed = time.time() - stime

@@ -12,8 +12,8 @@ import music21 # yes!
 parser = argparse.ArgumentParser()
 parser.add_argument("-input", required=False, type=int, help="Audio Input Device")
 args = parser.parse_args()
-args.input = 3 #esto lo he puesto yo
-if not args.input:
+#args.input = 0 #esto lo he puesto yo
+if args.input == None: # antes not args.input no permite que sea cero, que es el microfono interno del Mac
     print("No input device specified. Printing list of input devices now: ")
     p = pyaudio.PyAudio()
     for i in range(p.get_device_count()):
@@ -23,6 +23,7 @@ if not args.input:
 
 # PyAudio object.
 p = pyaudio.PyAudio()
+print(p.get_device_info_by_index(0).get('name')) #esto lo he puesto yo
 
 # Open stream.
 stream = p.open(format=pyaudio.paFloat32,
@@ -50,7 +51,7 @@ def get_vocal_range(volume_thresh=0.01, cent_range=20, note_hold=20):
 
     previous_note = ""
     current_pitch = music21.pitch.Pitch()
-
+    print('current pitch', current_pitch) #esto lo he puesto yo
     while not have_range:
 
         data = stream.read(1024, exception_on_overflow=False)
@@ -129,5 +130,6 @@ def position_on_range(low_note, high_note, volume_thresh=.001, cent_range=3):
         q.put(cur_interval.cents / vocalInterval.cents)
 
 if __name__ == '__main__':
+    print('prueba')
     low_note, high_note = get_vocal_range()
     position_on_range()
