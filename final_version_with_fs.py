@@ -26,14 +26,38 @@ short_name_file = my_midi_file[my_midi_file.rfind('/')+1:]
 text_file = my_midi_file[:my_midi_file.rfind('.')]+'.txt'
 # the mp3 file of the song should be, if any, in the same directory
 mp3_file = my_midi_file[:my_midi_file.rfind('.')]+'.mp3'
-
+moving = False
 def open_file(file_name):
     try:
         f = open(file_name, 'r')
         return f
     except FileNotFoundError:
         return False
+"""
+shorten(score, score_with_measures, part, start, end)
 
+This function takes a score, a part, a start and an end measure and returns a shortened score.
+
+Parameters
+----------
+score : music21.stream.Score
+    The score to be shortened.
+score_with_measures : music21.stream.Score
+    The score with measures.
+part : int
+    The part to be shortened.
+start : int
+    The start measure.
+end : int
+    The end measure.
+
+Returns
+-------
+short_score_part : music21.stream.Score
+    The shortened score.
+mm_start : music21.tempo.MetronomeMark
+    The metronome mark of the start measure."""
+    
 def shorten(score, score_with_measures, part, start, end):
     score_part = score.parts[part]
     score_part = score_part.makeMeasures()
@@ -96,7 +120,12 @@ def draw_notes():
             draw_text(str(sign.numerator) + '/' + str(sign.denominator),(x+5,20))           
      
     return all_displaid_notes_list
-
+"""
+Here's what the above functions are doing:
+1. We create a list of all the notes and chords in the piece.
+2. We iterate through the list, and for each element, we draw a rectangle.
+3. We return a list of all the rectangles we've drawn.
+"""
 def draw_measures():
     for element in sM:
         elapsed_time = element['offsetSeconds']
@@ -188,14 +217,37 @@ def check_note():
             #print(event.pos,note_rect.x, note_rect.y)
             if note_rect.collidepoint((event.pos[0] + stage_page * screenWidth),event.pos[1]):
                 #midi_note_number = midi_note(note_rect.y)
+                #color = note_rect.color
+                
+                #note_rect.color = (0,0,255)
+                #pygame.draw.rect(stage, (0,0,255), note_rect, 0,4)
+                #pygame.draw.rect(stage, color_default, note_rect, 2,4)
+                
+                #pygame.display.flip()
                 fs.noteon(0,midi_note(note_rect.y), 127)
                 time.sleep(min(1,note_rect.w / PXS))
                 fs.noteoff(0,midi_note(note_rect.y))
-        pygame.event.clear()
-    return
-
+                #note_rect.color = color
                 
-
+                break      
+    return
+def check_rewind_moving(motion):
+    moving = motion
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        if rewind_line.collidepoint((event.pos[0] + stage_page * screenWidth),event.pos[1]):
+            moving = True
+            rewind_line_color = (0,255,0)
+    
+    elif event.type == pygame.MOUSEBUTTONUP:
+        moving = False
+        rewind_line_color = color_default
+    
+            # Make your image move continuously
+    elif event.type == pygame.MOUSEMOTION and moving:
+        rewind_line.move_ip(event.rel)
+    
+    return moving
+        
 
 short_score_part, mm_start = shorten(score, score_with_measures,part, start, end)
 
@@ -237,7 +289,7 @@ else:
 
 pygame.init()
 screenWidth, screenHeight = 1200, 800 #try with different set-ups
-screen = pygame.display.set_mode((screenWidth, screenHeight))
+screen = pygame.display.set_mode((screenWidth, screenHeight))#,pygame.FULLSCREEN)
  
 #clock = pygame.time.Clock()
 
@@ -302,6 +354,7 @@ stage.fill((0,0,0))
 draw_scale()
 all_displaid_notes_list = draw_notes()
 draw_measures()
+rewind_line = pygame.Rect(0,0,4,2*stageHeight)
        
 
 if sound_file:
@@ -325,8 +378,15 @@ stime = time.time()
 is_paused = False
 delta = 0
 elapsed = 0
+paused_time = 0
 pygame.event.clear()
 rewind = False
+rewind_line_color = color_default
+
+
+
+
+
 
 ###Now the game starts:
 while running:
@@ -346,8 +406,11 @@ while running:
             while True: #Infinite loop that will be broken when the user press the space bar again
                 if sound_file:
                     pygame.mixer.music.pause()
-                    #elapsed = now  - stime
+                    paused_time = time.time()
                     check_note()
+                    #moving = check_rewind_moving(moving)
+                    #moving = check_move_rewind()
+                    pygame.event.clear()
                 else:   
                     pygame.mixer.music.stop()
                 #sp.stop()
@@ -360,24 +423,48 @@ while running:
                         redraw(best_score)
                         score = 0
                         pygame.mixer.music.play(-1, music_start_time)
+                        rewind = True
                     elif  event.key == pygame.K_SPACE:
                         pygame.mixer.music.unpause() if sound_file else pygame.mixer.music.play()  
-                        #stime = now - elapsed
-                    break #Exit infinite loop  
+                        #paused_time -= time.time()
+                        stime += time.time() - paused_time #gpt-4
+                        break #Exit infinite loop 
+                    '''elif event.key == pygame.K_BACKSPACE and sound_file:
+                        elapsed = time.time() - stime + paused_time
+                        delta = min(music_position, 5)
+                        rewind = True
+                        redraw(score)
+                    
+                        pygame.mixer.music.play(start=music_start_time + elapsed - delta)'''
+        
+
+        #pygame.mixer.music.play(start=music_start_time + elapsed - delta) 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
             best_score = max(score, best_score)
             redraw(best_score)
             score = 0
             pygame.mixer.music.play(-1,music_start_time+elapsed-delta)
-            rewind = True
+            
+            
+            
             
         if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE and sound_file:
             #pygame.mixer.music.rewind()
-                elapsed = time.time() - stime
+                
+                elapsed = time.time() - stime #+ paused_time #gpt-4q
+                
+
+
+
                 delta = min(music_position, 5)
+                rewind = True
+                redraw(score)
+                #pygame.mixer.music.set_pos(music_position * 1000)
 
 
                 pygame.mixer.music.play(start=music_start_time+elapsed-delta)
+                #pygame.mixer.music.play(-1,music_position-delta)
+                #paused_time = 0
                 stime += delta
 
 
@@ -386,8 +473,30 @@ while running:
             pygame.mixer.music.set_volume(volume) 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_UP: 
             volume = min(1, volume+0.1)
-            pygame.mixer.music.set_volume(volume)              
+            pygame.mixer.music.set_volume(volume)
+
+        
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            #if rewind_line.collidepoint((event.pos[0] + stage_page * screenWidth),event.pos[1]):
+            if rewind_line.collidepoint(event.pos):  
+                moving = True
+                rewind_line_color = (0,255,0)
     
+        elif event.type == pygame.MOUSEBUTTONUP:
+            moving = False
+            rewind_line_color = color_default
+            #pygame.draw.rect(stage, rewind_line_color, rewind_line, 1)
+    
+            # Make your image move continuously
+        elif event.type == pygame.MOUSEMOTION and moving:
+            rewind_line.move_ip(event.rel)
+            #pygame.draw.rect(stage, (9,180,237, 100), rewind_line, 1)
+            #pygame.draw.rect(screen, rewind_line_color, rewind_line, 1)
+            #pygame.display.update(rewind_line)
+                
+                #draw_text('rewind_touch'+ str(elapsed)[0:5],(screenWidth -150, 45), 15, False)            
+                 
+        
     music_position = pygame.mixer.music.get_pos() / 1000 + elapsed - delta # in seconds
     #music_position = stime
     x = music_position * PXS
@@ -397,9 +506,14 @@ while running:
     screen.blit(stage,(-stage_page * screenWidth,0))
     rel_x = x % screenWidth
     if rewind:
-        rewind_x = rel_x
-        pygame.draw.line(stage, (9,180,237, 100), (rewind_x, 0), (rewind_x, stageHeight), 1)                      
+        #rewind_x = rel_x
+        rewind_line = pygame.Rect(x,0,4,2*stageHeight)
+        #pygame.draw.rect(screen, rewind_line_color, rewind_line, 1)
+        #pygame.draw.line(stage, (9,180,237, 100), (rewind_x, 0), (rewind_x, stageHeight), 1)                      
         rewind = False
+    #if moving:
+    pygame.draw.rect(stage, rewind_line_color, rewind_line, 1)
+
 
     pygame.draw.line(screen, (9,180,237, 10), (rel_x, 0), (rel_x, stageHeight), 1)                      
 
@@ -440,9 +554,10 @@ while running:
 
     draw_text(str(score),(screenWidth / 2, 0), 30, False)
     draw_text('elapsed: '+ str(elapsed)[0:5],(screenWidth -150, 45), 15, False)
-    draw_text('delta  : '+ str(delta)[0:5],(screenWidth -150, 65), 15, False)
+    draw_text('paused  : '+ str(paused_time)[0:5],(screenWidth -150, 65), 15, False)
     draw_text('position:'+ str(music_position)[0:5],(screenWidth -150, 85), 15, False)
-    draw_text('music_st:'+ str(music_start_time)[0:5],(screenWidth -150, 105), 15, False)
+    draw_text('delta   :'+ str(delta)[0:5],(screenWidth -150, 105), 15, False)
+    draw_text('stime   :'+ str(stime)[0:5],(screenWidth -150, 125), 15, False)
     if Repeat:
         draw_text('best score: '+str(best_score),(screenWidth / 2-25, 45), 15, False)      
 

@@ -1,7 +1,9 @@
 import tkinter as tk
+import os
 from tkinter.filedialog import askopenfilename
 from tkinter import ttk
 from music21 import *
+import pickle
 
 
 
@@ -12,7 +14,14 @@ class App():
         self.root.geometry("600x350+450+200")
         self.filename = tk.StringVar()
         self.part_list = []
-
+        self.last_file = None # Initialize last_file as None
+                # Try to read the last file from the pickle file
+        try:
+            with open('last_file.pickle', 'rb') as f:
+                self.last_file = pickle.load(f)
+        except (OSError, IOError, pickle.UnpicklingError, EOFError):
+            # The pickle file is empty or does not exist
+            self.last_file = None
         #declare control variables
 
         self.selected_part = tk.IntVar(value = 0)
@@ -64,7 +73,11 @@ class App():
         self.root.mainloop()
 
     def file_select(self):
-        self.filename = askopenfilename(initialdir = '/Users/eduardoratier/Downloads',
+         # Use the last file opened as the default file, if available
+        initial_file = self.last_file[self.last_file.rfind('/')+1:] if self.last_file else ''
+        initial_dir = os.path.dirname(self.last_file) if self.last_file else '/Users/eduardoratier/Dropbox'
+        self.filename = askopenfilename(initialdir = initial_dir,
+                                        initialfile=initial_file,
         title ='Select a midi file',filetypes = [('midi files','*.mid')])
         short_name_file = self.filename[self.filename.rfind('/')+1:]
         short_name_file = short_name_file[:short_name_file.find('.')]
@@ -79,7 +92,11 @@ class App():
 
         self.score_with_measures = self.score.makeMeasures()
         self.last_measure.set(self.score_with_measures[-1].number)
-
+        # Save the selected file as the last file opened
+        if self.filename:
+            self.last_file = self.filename
+            with open('last_file.pickle', 'wb') as f:
+                pickle.dump(self.last_file, f)
 
     def part_select(self, event):
         w = event.widget
